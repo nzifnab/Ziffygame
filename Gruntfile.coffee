@@ -6,11 +6,11 @@ module.exports = (grunt) ->
 
     # Sources
     coffee_src: 'src/coffee/**/*.coffee'
-    coffee_build: 'build/js/<%= pkg.name %>.js'
+    coffee_build: 'tmp/js/<%= pkg.name %>.js'
 
     # Paths for copying...
-    image_src: 'img/**/*.png'
-    image_build: 'build/img/'
+    asset_src: 'assets/**'
+    asset_build: 'build/assets/'
     index_src: 'index.html'
     #js_specs: 'test/**/*.spec.js'
 
@@ -18,11 +18,12 @@ module.exports = (grunt) ->
     #js_dir: 'build/js'
 
     # Minified target name
+    concatted: 'build/js/<%= pkg.name %>.js'
     minified: 'build/js/<%= pkg.name %>.min.js'
 
     # Libraries to load for frontend
     frontend_libs: [
-      # Craftyjs
+      "src/lib/crafty.js"
     ]
   }
 
@@ -31,7 +32,7 @@ module.exports = (grunt) ->
   paths.coffee_files[paths.coffee_build] = [paths.coffee_src]
 
   paths.build_includes = [
-    {expand: true, src: [paths.image_src, paths.index_src], dest: paths.build_dir, cwd: paths.src_dir}
+    {expand: true, src: [paths.asset_src, paths.index_src], dest: paths.build_dir, cwd: paths.src_dir}
   ]
 
   # Project configuration.
@@ -45,13 +46,23 @@ module.exports = (grunt) ->
         files: paths.coffee_files
       }
     },
+    # Concat compiled coffee files w/ library files
+    concat: {
+      options: {
+        separator: ';\n'
+      },
+      dist: {
+        src: [paths.frontend_libs..., paths.coffee_build],
+        dest: paths.concatted
+      }
+    },
     # Task to uglify the JS
     uglify: {
       options: {
         banner: '/*! <%= pkg.name %> <%= grunt.template.today("yyyy-mm-dd") %> */\n'
       },
       build: {
-        src: paths.coffee_build
+        src: paths.concatted
         dest: paths.minified
       }
     }
@@ -66,9 +77,10 @@ module.exports = (grunt) ->
   )
 
   grunt.loadNpmTasks('grunt-contrib-coffee')
+  grunt.loadNpmTasks('grunt-contrib-concat')
   # Load the plugin that provides the "uglify" task.
   grunt.loadNpmTasks('grunt-contrib-uglify')
   grunt.loadNpmTasks('grunt-contrib-copy')
 
   # Default task(s).
-  grunt.registerTask('default', ['coffee', 'uglify', 'copy:build'])
+  grunt.registerTask('default', ['coffee', 'concat', 'uglify', 'copy:build'])
