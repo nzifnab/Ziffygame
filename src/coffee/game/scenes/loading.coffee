@@ -11,14 +11,14 @@ assetsMap = {
       paddingX: 2
       paddingY: 2
     },
-    "assets/img/characters/player/rest_sprites.png": {
-      tile: 395
-      tileh: 512
+    "assets/img/characters/player/spritesheet_players.png": {
+      tile: 128
+      tileh: 256
       map: {
-        spr_player: [0,0]
+        spr_player: [4,5]
       }
-      paddingX: 0
       paddingY: 0
+      paddingX: 0
     }
   }
 }

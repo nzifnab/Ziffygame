@@ -13093,10 +13093,10 @@ Crafty.extend({
 
 (function() {
   Crafty.c("Player", {
-    width: 32,
-    height: 48,
+    width: Game.gameGrid.tile.width * 0.75,
+    height: Game.gameGrid.tile.height * 1.5,
     init: function() {
-      return this.requires('spr_player, 2D, Canvas, Multiway, Collision, Gravity').multiway(4, {
+      this.requires('spr_player, 2D, Canvas, Multiway, Collision, Gravity, SpriteAnimation').multiway(4, {
         D: 0,
         A: 180,
         RIGHT_ARROW: 0,
@@ -13104,7 +13104,24 @@ Crafty.extend({
       }).attr({
         w: this.width,
         h: this.height
-      }).registerCollisions().gravity("Floor").gravityConst(Game.gravityConst);
+      }).collision([3, 39], [45, 39], [45, 96], [3, 96]).registerCollisions().gravity("Floor").gravityConst(Game.gravityConst).reel("PlayerRunning", 200, [[4, 1], [4, 2]]).reel("PlayerResting", 50000, [[5, 0], [4, 5]]).animate('PlayerResting');
+      this.bind('NewDirection', function(data) {
+        if (data.x > 0) {
+          this.unflip('X');
+          return this.animate('PlayerRunning', -1);
+        } else if (data.x < 0) {
+          this.flip('X');
+          return this.animate('PlayerRunning', -1);
+        } else {
+          return this.animate('PlayerResting', -1);
+        }
+      });
+      this.bind('StartAnimation', function(data) {
+        return this.randomRest(data);
+      });
+      return this.bind('FrameChange', function(data) {
+        return this.randomRest(data);
+      });
     },
     at: function(x, y) {
       var transX, transY;
@@ -13117,6 +13134,13 @@ Crafty.extend({
         y: y
       });
       return this;
+    },
+    randomRest: function(data) {
+      if (data.id === 'PlayerResting') {
+        return this.animationSpeed = Crafty.math.randomNumber(1, 10);
+      } else {
+        return this.animationSpeed = 1;
+      }
     },
     registerCollisions: function() {
       this.onHit('Solid', this.stopMovement);
@@ -13256,14 +13280,14 @@ Crafty.extend({
         paddingX: 2,
         paddingY: 2
       },
-      "assets/img/characters/player/rest_sprites.png": {
-        tile: 395,
-        tileh: 512,
+      "assets/img/characters/player/spritesheet_players.png": {
+        tile: 128,
+        tileh: 256,
         map: {
-          spr_player: [0, 0]
+          spr_player: [4, 5]
         },
-        paddingX: 0,
-        paddingY: 0
+        paddingY: 0,
+        paddingX: 0
       }
     }
   };

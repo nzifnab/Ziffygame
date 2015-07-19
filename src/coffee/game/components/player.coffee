@@ -1,8 +1,8 @@
 Crafty.c "Player", {
-  width: 32
-  height: 48
+  width: Game.gameGrid.tile.width * 0.75
+  height: Game.gameGrid.tile.height * 1.5
   init: ->
-    @requires('spr_player, 2D, Canvas, Multiway, Collision, Gravity')
+    @requires('spr_player, 2D, Canvas, Multiway, Collision, Gravity, SpriteAnimation')
       .multiway(4,
         # Key bindings, and direction to move (in degrees)
         D: 0
@@ -14,9 +14,37 @@ Crafty.c "Player", {
         w: @width,
         h: @height
       }
+      # The hitbox of our little alien
+      .collision([3, 39], [45, 39], [45, 96], [3, 96])
       .registerCollisions()
       .gravity("Floor")
       .gravityConst(Game.gravityConst)
+      .reel("PlayerRunning", 200,
+        [[4, 1], [4, 2]]
+      )
+      .reel("PlayerResting", 50000,
+        [[5, 0], [4, 5]]
+      )
+      .animate('PlayerResting')
+
+    @bind('NewDirection', (data) ->
+      if data.x > 0
+        @unflip('X')
+        @animate('PlayerRunning', -1)
+      else if data.x < 0
+        @flip('X')
+        @animate('PlayerRunning', -1)
+      else
+        @animate('PlayerResting', -1)
+    )
+
+    @bind('StartAnimation', (data) ->
+      @randomRest(data)
+    )
+
+    @bind('FrameChange', (data) ->
+      @randomRest(data)
+    )
 
   at: (x, y) ->
     transX = Game.playAreaX()
@@ -25,6 +53,12 @@ Crafty.c "Player", {
     y = y * Game.gameGrid.tile.height + transY * Game.gameGrid.tile.height - @height
     @attr {x, y}
     this
+
+  randomRest: (data) ->
+    if data.id == 'PlayerResting'
+      @animationSpeed = Crafty.math.randomNumber(1, 10)
+    else
+      @animationSpeed = 1
 
   registerCollisions: ->
     # Stop on solid objects
