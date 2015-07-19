@@ -5,7 +5,8 @@ module.exports = (grunt) ->
     src_dir: 'src'
 
     # Sources
-    coffee_src: 'src/coffee/**/*.coffee'
+    coffee_base_src: 'src/coffee/game.coffee'
+    coffee_src: 'src/coffee/game/**/*.coffee'
     coffee_build: 'tmp/js/<%= pkg.name %>.js'
 
     # Paths for copying...
@@ -29,7 +30,7 @@ module.exports = (grunt) ->
 
   paths.coffee_files = {}
   # Destination => source
-  paths.coffee_files[paths.coffee_build] = [paths.coffee_src]
+  paths.coffee_files[paths.coffee_build] = [paths.coffee_base_src, paths.coffee_src]
 
   paths.build_includes = [
     {expand: true, src: [paths.asset_src, paths.index_src], dest: paths.build_dir, cwd: paths.src_dir}

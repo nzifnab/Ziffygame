@@ -2,7 +2,7 @@ Crafty.c "Player", {
   width: 32
   height: 48
   init: ->
-    @requires('2D, Canvas, Multiway, Color, Collision, Gravity')
+    @requires('spr_player, 2D, Canvas, Multiway, Collision, Gravity')
       .multiway(4,
         # Key bindings, and direction to move (in degrees)
         D: 0
@@ -10,30 +10,34 @@ Crafty.c "Player", {
         RIGHT_ARROW: 0,
         LEFT_ARROW: 180
       )
-      .color('rgb(20, 75, 40)')
       .attr {
         w: @width,
         h: @height
       }
-      .stopOnSolids()
+      .registerCollisions()
       .gravity("Floor")
       .gravityConst(Game.gravityConst)
 
   at: (x, y) ->
     transX = Game.playAreaX()
-    transY = (Game.gameGrid.height - Game.gameGrid.baseFloorHeight)
+    transY = (Game.gameGrid.height - Game.gameGrid.baseFloorHeight + 1)
     x = x * Game.gameGrid.tile.width + transX * Game.gameGrid.tile.width
     y = y * Game.gameGrid.tile.height + transY * Game.gameGrid.tile.height - @height
     @attr {x, y}
     this
 
-  stopOnSolids: ->
+  registerCollisions: ->
+    # Stop on solid objects
     @onHit('Solid', @stopMovement)
-    this
+    @onHit('LevelEnd', @completeLevel)
 
   stopMovement: ->
     @_speed = 0
     if @_movement
       @x -= @_movement.x
       @y -= @_movement.y
+
+  completeLevel: (data) ->
+    endMarker = data[0].obj
+    endMarker.collect()
 }

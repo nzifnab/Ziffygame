@@ -13010,7 +13010,60 @@ Crafty.extend({
 
 },{"./core.js":10}]},{},[11]);;
 (function() {
+  window.Game = (function() {
+    function Game() {}
 
+    Game.gameGrid = {
+      width: 17,
+      height: 8,
+      tile: {
+        width: 64,
+        height: 64
+      },
+      baseFloorHeight: 3,
+      playAreaWidth: 12
+    };
+
+    Game.gravityConst = 0.2;
+
+    Game.width = function() {
+      return this.gameGrid.width * this.gameGrid.tile.width;
+    };
+
+    Game.height = function() {
+      return this.gameGrid.height * this.gameGrid.tile.height;
+    };
+
+    Game.playAreaX = function() {
+      return (this.gameGrid.width - this.gameGrid.playAreaWidth - 1) / 2;
+    };
+
+    Game.playAreaMaxX = function() {
+      return this.gameGrid.width - this.playAreaX();
+    };
+
+    Game.start = function() {
+      Crafty.init(this.width(), this.height());
+      Crafty.background('rgb(249, 223, 125)');
+      return Crafty.scene("Loading");
+    };
+
+    Game.level = function() {
+      return this._level || (this._level = new this.Level());
+    };
+
+    Game.restart = function() {
+      this._level = null;
+      return this.level().next();
+    };
+
+    return Game;
+
+  })();
+
+  window.addEventListener('load', function() {
+    return Game.start();
+  });
 
 }).call(this);
 
@@ -13043,20 +13096,20 @@ Crafty.extend({
     width: 32,
     height: 48,
     init: function() {
-      return this.requires('2D, Canvas, Multiway, Color, Collision, Gravity').multiway(4, {
+      return this.requires('spr_player, 2D, Canvas, Multiway, Collision, Gravity').multiway(4, {
         D: 0,
         A: 180,
         RIGHT_ARROW: 0,
         LEFT_ARROW: 180
-      }).color('rgb(20, 75, 40)').attr({
+      }).attr({
         w: this.width,
         h: this.height
-      }).stopOnSolids().gravity("Floor").gravityConst(Game.gravityConst);
+      }).registerCollisions().gravity("Floor").gravityConst(Game.gravityConst);
     },
     at: function(x, y) {
       var transX, transY;
       transX = Game.playAreaX();
-      transY = Game.gameGrid.height - Game.gameGrid.baseFloorHeight;
+      transY = Game.gameGrid.height - Game.gameGrid.baseFloorHeight + 1;
       x = x * Game.gameGrid.tile.width + transX * Game.gameGrid.tile.width;
       y = y * Game.gameGrid.tile.height + transY * Game.gameGrid.tile.height - this.height;
       this.attr({
@@ -13065,9 +13118,9 @@ Crafty.extend({
       });
       return this;
     },
-    stopOnSolids: function() {
+    registerCollisions: function() {
       this.onHit('Solid', this.stopMovement);
-      return this;
+      return this.onHit('LevelEnd', this.completeLevel);
     },
     stopMovement: function() {
       this._speed = 0;
@@ -13075,6 +13128,11 @@ Crafty.extend({
         this.x -= this._movement.x;
         return this.y -= this._movement.y;
       }
+    },
+    completeLevel: function(data) {
+      var endMarker;
+      endMarker = data[0].obj;
+      return endMarker.collect();
     }
   });
 
@@ -13083,79 +13141,181 @@ Crafty.extend({
 (function() {
   Crafty.c("Tile", {
     init: function() {
-      return this.requires('2D, Canvas, Grid');
+      return this.requires('2D, Canvas, Grid').attr({
+        w: Game.gameGrid.tile.width,
+        h: Game.gameGrid.tile.height
+      });
     }
   });
 
   Crafty.c("Grass", {
     init: function() {
-      this.requires('Floor, Tile, Color, Solid');
-      return this.color('rgb(255, 0, 0)');
+      return this.requires('spr_grass, Floor, Tile, Solid');
     }
   });
 
   Crafty.c("Dirt", {
     init: function() {
-      this.requires('Tile, Color, Solid');
-      return this.color('rgb(20, 185, 40)');
+      return this.requires('spr_dirt, Tile, Solid');
+    }
+  });
+
+  Crafty.c("LevelEnd", {
+    init: function() {
+      return this.requires('spr_level_end, Tile');
+    },
+    collect: function() {
+      this.destroy();
+      return Crafty.trigger("LevelComplete", this);
     }
   });
 
 }).call(this);
 
 (function() {
-  window.Game = (function() {
-    function Game() {}
+  Game.Level = (function() {
+    function Level(major, minor) {
+      this.major = major != null ? major : 0;
+      this.minor = minor != null ? minor : 0;
+    }
 
-    Game.gameGrid = {
-      width: 33,
-      height: 16,
-      tile: {
-        width: 32,
-        height: 32
-      },
-      baseFloorHeight: 6,
-      playAreaWidth: 24
+    Level.prototype.sceneName = function() {
+      return "Level" + (Game.Utility.padString(this.major, 2)) + "-" + (Game.Utility.padString(this.minor, 2));
     };
 
-    Game.gravityConst = 0.12;
-
-    Game.width = function() {
-      return this.gameGrid.width * this.gameGrid.tile.width;
-    };
-
-    Game.height = function() {
-      return this.gameGrid.height * this.gameGrid.tile.height;
-    };
-
-    Game.playAreaX = function() {
-      return (this.gameGrid.width - this.gameGrid.playAreaWidth - 1) / 2;
-    };
-
-    Game.playAreaMaxX = function() {
-      return this.gameGrid.width - this.playAreaX();
-    };
-
-    Game.start = function() {
-      var i, j, ref, ref1, ref2, x, y;
-      Crafty.init(this.width(), this.height());
-      Crafty.background('rgb(249, 223, 125)');
-      for (x = i = 0, ref = this.gameGrid.playAreaWidth; 0 <= ref ? i <= ref : i >= ref; x = 0 <= ref ? ++i : --i) {
-        y = 0;
-        Crafty.e('Grass').at(x, y);
-        for (y = j = ref1 = y + 1, ref2 = this.gameGrid.height; ref1 <= ref2 ? j <= ref2 : j >= ref2; y = ref1 <= ref2 ? ++j : --j) {
-          Crafty.e('Dirt').at(x, y);
+    Level.prototype.next = function() {
+      this.minor += 1;
+      if (!this.start()) {
+        this.minor = 0;
+        this.major += 1;
+        if (!this.start()) {
+          return Crafty.scene('Victory');
         }
       }
-      return Crafty.e("Player").at(1, 0);
     };
 
-    return Game;
+    Level.prototype.start = function() {
+      if (Crafty._scenes[this.sceneName()] == null) {
+        return false;
+      }
+      Crafty.scene(this.sceneName(), this);
+      return true;
+    };
+
+    Level.prototype.init = function() {
+      var i, ref, results, x, y;
+      results = [];
+      for (x = i = 0, ref = Game.gameGrid.playAreaWidth; 0 <= ref ? i <= ref : i >= ref; x = 0 <= ref ? ++i : --i) {
+        y = 0;
+        Crafty.e('Grass').at(x, y);
+        results.push((function() {
+          var j, ref1, ref2, results1;
+          results1 = [];
+          for (y = j = ref1 = y + 1, ref2 = Game.gameGrid.height; ref1 <= ref2 ? j <= ref2 : j >= ref2; y = ref1 <= ref2 ? ++j : --j) {
+            results1.push(Crafty.e('Dirt').at(x, y));
+          }
+          return results1;
+        })());
+      }
+      return results;
+    };
+
+    return Level;
 
   })();
 
-  window.addEventListener('load', function() {
-    return Game.start();
+}).call(this);
+
+(function() {
+  Crafty.scene('Level00-01', (function(level) {
+    level.init();
+    Crafty.e('LevelEnd').at(12, -1);
+    Crafty.e("Player").at(1, -1);
+    return this.nextLevel = this.bind('LevelComplete', function() {
+      return level.next();
+    });
+  }), function() {
+    return this.unbind('LevelComplete', this.nextLevel);
   });
+
+}).call(this);
+
+(function() {
+  var assetsMap;
+
+  assetsMap = {
+    "sprites": {
+      "assets/img/tiles_sprites.png": {
+        tile: 70,
+        tileh: 70,
+        map: {
+          spr_grass: [7, 8],
+          spr_dirt: [8, 12],
+          spr_level_end: [1, 0]
+        },
+        paddingX: 2,
+        paddingY: 2
+      },
+      "assets/img/characters/player/rest_sprites.png": {
+        tile: 395,
+        tileh: 512,
+        map: {
+          spr_player: [0, 0]
+        },
+        paddingX: 0,
+        paddingY: 0
+      }
+    }
+  };
+
+  Crafty.scene("Loading", (function() {
+    Crafty.e('2D, DOM, Text').text('Loading...').attr({
+      x: 0,
+      y: Game.height() / 2 - 24,
+      w: Game.width()
+    }).textFont({
+      size: '34px',
+      family: 'Arial',
+      color: 'white'
+    });
+    return Crafty.load(assetsMap, function() {
+      return Game.level().next();
+    });
+  }));
+
+}).call(this);
+
+(function() {
+  Crafty.scene('Victory', (function() {
+    Crafty.e('2D, DOM, Text').attr({
+      x: 100,
+      y: 100
+    }).text("Victory!").textFont({
+      size: '34px',
+      family: 'Arial',
+      color: 'white'
+    });
+    return this.restartGame = this.bind('KeyDown', function() {
+      return Game.restart();
+    });
+  }), function() {
+    return this.unbind("KeyDown", this.restartGame);
+  });
+
+}).call(this);
+
+(function() {
+  Game.Utility = {
+    padString: function(value, padSize, padChar) {
+      var pad;
+      value += "";
+      if (value.length >= padSize) {
+        return value;
+      }
+      padChar = padChar != null ? padChar : '0';
+      pad = new Array(1 + padSize).join(padChar);
+      return (pad + value).slice(-pad.length);
+    }
+  };
 
 }).call(this);
