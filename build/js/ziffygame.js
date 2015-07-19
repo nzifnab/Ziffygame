@@ -13010,22 +13010,152 @@ Crafty.extend({
 
 },{"./core.js":10}]},{},[11]);;
 (function() {
-  var myTestThing;
 
-  myTestThing = function(stuff) {
-    return "Hello " + stuff;
-  };
-
-  myTestThing('World');
 
 }).call(this);
 
 (function() {
-  var options;
+  Crafty.c("Grid", {
+    init: function() {
+      return this.attr({
+        w: Game.gameGrid.tile.width,
+        h: Game.gameGrid.tile.height
+      });
+    },
+    at: function(x, y) {
+      var transX, transY;
+      transX = Game.playAreaX();
+      transY = Game.gameGrid.height - Game.gameGrid.baseFloorHeight;
+      x = x * Game.gameGrid.tile.width + transX * Game.gameGrid.tile.width;
+      y = y * Game.gameGrid.tile.height + transY * Game.gameGrid.tile.height;
+      this.attr({
+        x: x,
+        y: y
+      });
+      return this;
+    }
+  });
 
-  options = {
-    "this": 'is',
-    pretty: 'cool'
-  };
+}).call(this);
+
+(function() {
+  Crafty.c("Player", {
+    width: 32,
+    height: 48,
+    init: function() {
+      return this.requires('2D, Canvas, Multiway, Color, Collision, Gravity').multiway(4, {
+        D: 0,
+        A: 180,
+        RIGHT_ARROW: 0,
+        LEFT_ARROW: 180
+      }).color('rgb(20, 75, 40)').attr({
+        w: this.width,
+        h: this.height
+      }).stopOnSolids().gravity("Floor").gravityConst(Game.gravityConst);
+    },
+    at: function(x, y) {
+      var transX, transY;
+      transX = Game.playAreaX();
+      transY = Game.gameGrid.height - Game.gameGrid.baseFloorHeight;
+      x = x * Game.gameGrid.tile.width + transX * Game.gameGrid.tile.width;
+      y = y * Game.gameGrid.tile.height + transY * Game.gameGrid.tile.height - this.height;
+      this.attr({
+        x: x,
+        y: y
+      });
+      return this;
+    },
+    stopOnSolids: function() {
+      this.onHit('Solid', this.stopMovement);
+      return this;
+    },
+    stopMovement: function() {
+      this._speed = 0;
+      if (this._movement) {
+        this.x -= this._movement.x;
+        return this.y -= this._movement.y;
+      }
+    }
+  });
+
+}).call(this);
+
+(function() {
+  Crafty.c("Tile", {
+    init: function() {
+      return this.requires('2D, Canvas, Grid');
+    }
+  });
+
+  Crafty.c("Grass", {
+    init: function() {
+      this.requires('Floor, Tile, Color, Solid');
+      return this.color('rgb(255, 0, 0)');
+    }
+  });
+
+  Crafty.c("Dirt", {
+    init: function() {
+      this.requires('Tile, Color, Solid');
+      return this.color('rgb(20, 185, 40)');
+    }
+  });
+
+}).call(this);
+
+(function() {
+  window.Game = (function() {
+    function Game() {}
+
+    Game.gameGrid = {
+      width: 33,
+      height: 16,
+      tile: {
+        width: 32,
+        height: 32
+      },
+      baseFloorHeight: 6,
+      playAreaWidth: 24
+    };
+
+    Game.gravityConst = 0.12;
+
+    Game.width = function() {
+      return this.gameGrid.width * this.gameGrid.tile.width;
+    };
+
+    Game.height = function() {
+      return this.gameGrid.height * this.gameGrid.tile.height;
+    };
+
+    Game.playAreaX = function() {
+      return (this.gameGrid.width - this.gameGrid.playAreaWidth - 1) / 2;
+    };
+
+    Game.playAreaMaxX = function() {
+      return this.gameGrid.width - this.playAreaX();
+    };
+
+    Game.start = function() {
+      var i, j, ref, ref1, ref2, x, y;
+      Crafty.init(this.width(), this.height());
+      Crafty.background('rgb(249, 223, 125)');
+      for (x = i = 0, ref = this.gameGrid.playAreaWidth; 0 <= ref ? i <= ref : i >= ref; x = 0 <= ref ? ++i : --i) {
+        y = 0;
+        Crafty.e('Grass').at(x, y);
+        for (y = j = ref1 = y + 1, ref2 = this.gameGrid.height; ref1 <= ref2 ? j <= ref2 : j >= ref2; y = ref1 <= ref2 ? ++j : --j) {
+          Crafty.e('Dirt').at(x, y);
+        }
+      }
+      return Crafty.e("Player").at(1, 0);
+    };
+
+    return Game;
+
+  })();
+
+  window.addEventListener('load', function() {
+    return Game.start();
+  });
 
 }).call(this);

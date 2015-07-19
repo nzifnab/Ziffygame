@@ -84,3 +84,4 @@ module.exports = (grunt) ->
 
   # Default task(s).
   grunt.registerTask('default', ['coffee', 'concat', 'uglify', 'copy:build'])
+  grunt.registerTask('dev', ['coffee', 'concat', 'copy:build'])
