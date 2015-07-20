@@ -26,3 +26,49 @@ class Game.Level
       for y in [(y + 1)..Game.gameGrid.height]
         # Under the platform 'tops' shall be the 'dirt' bits
         Crafty.e('Dirt').at(x, y)
+
+  solidPlatform: (coords, topType='Grass', fillerType='Dirt') ->
+    if coords.w % 1 == 0.5
+      halfHor = 'right'
+      coords.w -= 0.5
+      skipX = 0.5
+    else
+      coords.w -= 1
+      skipX = 1
+    coords.h ||= coords.y * -1
+
+    if coords.h % 1 == 0.5
+      coords.h -= 0.5
+      halfVert = 'top'
+      skipY = 0.5
+    else
+      coords.h -= 1
+      skipY = 1
+
+    coords.y2 = coords.y + coords.h + skipY - 1
+    coords.x2 = coords.x + coords.w + skipX - 1
+
+    console.log coords
+
+    Crafty.e(topType).at(coords.x, coords.y)
+      .half(halfHor, halfVert)
+
+    firstLayer = true
+    if coords.y2 > (coords.y + skipY)
+      for y in [(coords.y + skipY)..coords.y2]
+        console.log "y = #{y}, skipY = #{skipY}"
+        Crafty.e(fillerType).at(coords.x, y)
+          .half(halfHor, null)
+
+        if coords.x2 > (coords.x + skipX)
+          for x in [(coords.x + skipX)..coords.x2]
+            console.log "x = #{x}, skipX = #{skipX}"
+
+            if firstLayer
+              Crafty.e(topType).at(x, y-skipY)
+                .half(null, halfVert)
+
+            Crafty.e(fillerType)
+              .at(x, y)
+
+      firstLayer = false

@@ -13017,8 +13017,8 @@ Crafty.extend({
       width: 17,
       height: 8,
       tile: {
-        width: 64,
-        height: 64
+        width: 70,
+        height: 70
       },
       baseFloorHeight: 3,
       playAreaWidth: 12
@@ -13068,6 +13068,62 @@ Crafty.extend({
 }).call(this);
 
 (function() {
+  Crafty.c("GravityVelocity", {
+    _gravityConst: 0.2,
+    _anti: null,
+    init: function() {
+      return this.requires('2D');
+    },
+    gravity: function(stopOnComponent) {
+      if (stopOnComponent) {
+        this._anti = stopOnComponent;
+      }
+      this.bind("EnterFrame", this._gravity_enterframe);
+      return this;
+    },
+    gravityConst: function(g) {
+      this._gravityConst = g;
+      return this;
+    },
+    _gravity_enterframe: function() {
+      var hit, i, len, obj, objects, pos;
+      if (this._falling) {
+        this._velocity.y += this._gravityConst;
+      }
+      pos = this.pos();
+      pos._y += 1;
+      pos.x = pos._x;
+      pos.y = pos._y;
+      pos.w = pos._w;
+      pos.h = pos._h;
+      objects = Crafty.map.search(pos);
+      for (i = 0, len = objects.length; i < len; i++) {
+        obj = objects[i];
+        if (obj !== this && obj.has(this._anti) && obj.intersect(pos)) {
+          hit = obj;
+          break;
+        }
+      }
+      if (hit) {
+        if (this._falling) {
+          return this.stopFalling(hit);
+        }
+      } else {
+        return this._falling = true;
+      }
+    },
+    stopFalling: function(e) {
+      console.log("Collision with floor");
+      this.y = e._y - this.h;
+      this._velocity.y = 0;
+      this._falling = false;
+      return this.trigger('FallingStopped');
+    }
+  });
+
+}).call(this);
+
+(function() {
   Crafty.c("Grid", {
     init: function() {
       return this.attr({
@@ -13096,32 +13152,10 @@ Crafty.extend({
     width: Game.gameGrid.tile.width * 0.75,
     height: Game.gameGrid.tile.height * 1.5,
     init: function() {
-      this.requires('spr_player, 2D, Canvas, Multiway, Collision, Gravity, SpriteAnimation').multiway(4, {
-        D: 0,
-        A: 180,
-        RIGHT_ARROW: 0,
-        LEFT_ARROW: 180
-      }).attr({
+      return this.requires('SolidHitBox, PlayerSprite, Collision, PlayerControls, GravityVelocity').attr({
         w: this.width,
         h: this.height
-      }).collision([3, 39], [45, 39], [45, 96], [3, 96]).registerCollisions().gravity("Floor").gravityConst(Game.gravityConst).reel("PlayerRunning", 200, [[4, 1], [4, 2]]).reel("PlayerResting", 50000, [[5, 0], [4, 5]]).animate('PlayerResting');
-      this.bind('NewDirection', function(data) {
-        if (data.x > 0) {
-          this.unflip('X');
-          return this.animate('PlayerRunning', -1);
-        } else if (data.x < 0) {
-          this.flip('X');
-          return this.animate('PlayerRunning', -1);
-        } else {
-          return this.animate('PlayerResting', -1);
-        }
-      });
-      this.bind('StartAnimation', function(data) {
-        return this.randomRest(data);
-      });
-      return this.bind('FrameChange', function(data) {
-        return this.randomRest(data);
-      });
+      }).collision([3, 42], [49, 42], [49, 105], [3, 105]).registerCollisions().gravity("Floor").gravityConst(Game.gravityConst);
     },
     at: function(x, y) {
       var transX, transY;
@@ -13135,22 +13169,14 @@ Crafty.extend({
       });
       return this;
     },
-    randomRest: function(data) {
-      if (data.id === 'PlayerResting') {
-        return this.animationSpeed = Crafty.math.randomNumber(1, 10);
-      } else {
-        return this.animationSpeed = 1;
-      }
-    },
     registerCollisions: function() {
       this.onHit('Solid', this.stopMovement);
       return this.onHit('LevelEnd', this.completeLevel);
     },
-    stopMovement: function() {
-      this._speed = 0;
-      if (this._movement) {
-        this.x -= this._movement.x;
-        return this.y -= this._movement.y;
+    stopMovement: function(data) {
+      if (this._velocity && !this.ducking) {
+        console.log("collision w/ solid");
+        return this.x -= this._velocity.x;
       }
     },
     completeLevel: function(data) {
@@ -13163,24 +13189,246 @@ Crafty.extend({
 }).call(this);
 
 (function() {
+  Crafty.c("PlayerControls", {
+    baseSpeed: 4,
+    jumpSpeed: Game.gameGrid.tile.height * 0.09375,
+    init: function() {
+      var i, k, len, ref, results;
+      this.requires('Keyboard');
+      this._velocity = {
+        x: 0,
+        y: 0
+      };
+      this._controls_bindControls();
+      ref = [Crafty.keys.LEFT_ARROW, Crafty.keys.RIGHT_ARROW, Crafty.keys.A, Crafty.keys.D];
+      results = [];
+      for (i = 0, len = ref.length; i < len; i++) {
+        k = ref[i];
+        if (Crafty.keydown[k]) {
+          results.push(this.trigger("KeyDown", {
+            key: k
+          }));
+        } else {
+          results.push(void 0);
+        }
+      }
+      return results;
+    },
+    _controls_bindControls: function() {
+      this.unbind("KeyDown", this._controls_keydown);
+      this.unbind("KeyUp", this._controls_keyup);
+      this.unbind("EnterFrame", this._controls_enterframe);
+      this.unbind("PlayerDucking", this.performDuck);
+      this.unbind("ExecutePlayerJump", this.performJump);
+      this.bind("KeyDown", this._controls_keydown);
+      this.bind("KeyUp", this._controls_keyup);
+      this.bind("EnterFrame", this._controls_enterframe);
+      this.bind("PlayerDucking", this.performDuck);
+      return this.bind("ExecutePlayerJump", this.performJump);
+    },
+    _controls_enterframe: function(e) {
+      var moved, x, y;
+      x = this._velocity.x;
+      y = this._velocity.y;
+      if (this.ducking || this.jumping) {
+        x = 0;
+      }
+      if (x !== 0) {
+        this.x += x;
+        moved = true;
+      }
+      if (y !== 0) {
+        moved = true;
+        this.y += y;
+      }
+      if (Game.Utility.negativeCheck(x) !== Game.Utility.negativeCheck(this._velocity.previousX) || Game.Utility.negativeCheck(y) !== Game.Utility.negativeCheck(this._velocity.previousY)) {
+        this.trigger("NewDirection", {
+          x: x,
+          y: y,
+          previousX: this._velocity.previousX,
+          previousY: this._velocity.previousY
+        });
+      }
+      this._velocity.previousX = x;
+      this._velocity.previousY = y;
+      if (moved) {
+        return this.trigger("Moved", {
+          x: this.x - x,
+          y: this.y - y
+        });
+      }
+    },
+    _controls_keydown: function(e) {
+      if (e.key === Crafty.keys.LEFT_ARROW || e.key === Crafty.keys.A) {
+        this._velocity.x += -this.baseSpeed;
+      } else if (e.key === Crafty.keys.RIGHT_ARROW || e.key === Crafty.keys.D) {
+        this._velocity.x += this.baseSpeed;
+      }
+      if (!this.ducking && (e.key === Crafty.keys.DOWN_ARROW || e.key === Crafty.keys.S)) {
+        this.duck();
+      }
+      if (!this.jumping && (e.key === Crafty.keys.UP_ARROW || e.key === Crafty.keys.W)) {
+        return this.jump();
+      }
+    },
+    _controls_keyup: function(e) {
+      if (e.key === Crafty.keys.LEFT_ARROW || e.key === Crafty.keys.A) {
+        this._velocity.x -= -this.baseSpeed;
+      } else if (e.key === Crafty.keys.RIGHT_ARROW || e.key === Crafty.keys.D) {
+        this._velocity.x -= this.baseSpeed;
+      }
+      if ((e.key === Crafty.keys.DOWN_ARROW || e.key === Crafty.keys.S) && !Crafty.keydown[Crafty.keys.DOWN_ARROW] && !Crafty.keydown[Crafty.keys.S]) {
+        return this.stand();
+      }
+    },
+    duck: function() {
+      if (this._velocity.y === 0) {
+        this.trigger("PlayerDucking", true);
+        return this.ducking = true;
+      }
+    },
+    jump: function() {
+      if (this._velocity.y === 0) {
+        this.trigger("PlayerJumping");
+        return this.jumping = true;
+      }
+    },
+    performJump: function() {
+      this._velocity.y = -this.jumpSpeed;
+      return this.jumping = false;
+    },
+    stand: function() {
+      this.trigger("PlayerDucking", false);
+      return this.ducking = false;
+    },
+    performDuck: function(isDucking) {
+      if (isDucking) {
+        this.y += this.attr('h') * 0.25;
+        this.attr('h', this.attr('h') * 0.75);
+        return this.collision([3, 42 * 0.75 + 10], [49, 42 * 0.75 + 10], [49, 105 * 0.75], [3, 105 * 0.75]);
+      } else {
+        this.y -= this.height - this.attr('h');
+        return this.attr('h', this.height).collision([3, 42], [49, 42], [49, 105], [3, 105]);
+      }
+    }
+  });
+
+}).call(this);
+
+(function() {
+  Crafty.c("PlayerSprite", {
+    init: function() {
+      this.requires('2D, Canvas, spr_player, SpriteAnimation').reel("PlayerRunning", 200, [[4, 1], [4, 2]]).reel("PlayerResting", 50000, [[4, 5], [5, 0]]).reel("PlayerDucking", 1, [[5, 1]]).reel("PlayerJumping", 500, [[5, 1], [5, 1], [5, 1], [4, 2]]).reel("PlayerFalling", 500, [[4, 3], [4, 4]]).animate('PlayerResting', -1);
+      this.bind('NewDirection', function(data) {
+        if (this.ducking || this.jumping) {
+          return;
+        }
+        if (data.y !== 0) {
+          this.animate('PlayerFalling', -1);
+        } else if (data.x > 0) {
+          this.animate('PlayerRunning', -1);
+        } else if (data.x < 0) {
+          this.animate('PlayerRunning', -1);
+        } else {
+          this.animate('PlayerResting', -1);
+        }
+        if (data.x > 0) {
+          return this.unflip('X');
+        } else if (data.x < 0) {
+          return this.flip('X');
+        }
+      });
+      this.bind('PlayerDucking', function(isDucking) {
+        if (isDucking) {
+          return this.animate("PlayerDucking", 1);
+        } else {
+          return this.animate("PlayerResting", -1);
+        }
+      });
+      this.bind('PlayerJumping', function() {
+        return this.animate("PlayerJumping", 1);
+      });
+      this.bind('StartAnimation', function(data) {
+        return this.randomRest(data);
+      });
+      this.bind('AnimationEnd', function(data) {
+        return this.triggerJump(data);
+      });
+      return this.bind('FrameChange', function(data) {
+        this.randomRest(data);
+        return this.adjustJumpHeight(data);
+      });
+    },
+    randomRest: function(data) {
+      if (data.id === 'PlayerResting') {
+        if (Crafty.math.randomInt(1, 2) === 1 && this.restStarted) {
+          this.flip('X');
+        } else if (this.restStarted) {
+          this.unflip('X');
+        }
+        this.restStarted = true;
+        return this.animationSpeed = Crafty.math.randomNumber(1, 10);
+      } else {
+        this.restStarted = false;
+        return this.animationSpeed = 1;
+      }
+    },
+    triggerJump: function(data) {
+      if (data.id === 'PlayerJumping') {
+        return this.trigger("ExecutePlayerJump");
+      }
+    },
+    adjustJumpHeight: function(data) {
+      if (data.id === "PlayerJumping") {
+        if (data.currentFrame === 1) {
+          return this.performDuck(true);
+        } else if (data.currentFrame === 2) {
+          return this.performDuck(false);
+        }
+      }
+    }
+  });
+
+}).call(this);
+
+(function() {
   Crafty.c("Tile", {
+    spriteW: 70,
+    spriteH: 70,
     init: function() {
       return this.requires('2D, Canvas, Grid').attr({
         w: Game.gameGrid.tile.width,
         h: Game.gameGrid.tile.height
       });
+    },
+    half: function(horizontal, vertical) {
+      var h, w, x, y;
+      if (horizontal == null) {
+        horizontal = null;
+      }
+      if (vertical == null) {
+        vertical = null;
+      }
+      console.log("@w = " + this.w + ", @h = " + this.h);
+      console.log("horizontal = " + horizontal + ", vertical = " + vertical);
+      x = horizontal === 'left' || !horizontal ? 0 : this.w / 2;
+      y = vertical === 'top' || !vertical ? 0 : this.h / 2;
+      w = horizontal ? this.w / 2 : this.w;
+      h = vertical ? this.h / 2 : this.h;
+      console.log("x = " + x + ", y = " + y + ", w = " + w + ", h = " + h);
+      return this.crop(x, y, w, h);
     }
   });
 
   Crafty.c("Grass", {
     init: function() {
-      return this.requires('spr_grass, Floor, Tile, Solid');
+      return this.requires('Solid, spr_grass, Floor, Tile');
     }
   });
 
   Crafty.c("Dirt", {
     init: function() {
-      return this.requires('spr_dirt, Tile, Solid');
+      return this.requires('Solid, spr_dirt, Tile');
     }
   });
 
@@ -13244,6 +13492,54 @@ Crafty.extend({
       return results;
     };
 
+    Level.prototype.solidPlatform = function(coords, topType, fillerType) {
+      var firstLayer, halfHor, halfVert, i, j, ref, ref1, ref2, ref3, skipX, skipY, x, y;
+      if (topType == null) {
+        topType = 'Grass';
+      }
+      if (fillerType == null) {
+        fillerType = 'Dirt';
+      }
+      if (coords.w % 1 === 0.5) {
+        halfHor = 'right';
+        coords.w -= 0.5;
+        skipX = 0.5;
+      } else {
+        coords.w -= 1;
+        skipX = 1;
+      }
+      coords.h || (coords.h = coords.y * -1);
+      if (coords.h % 1 === 0.5) {
+        coords.h -= 0.5;
+        halfVert = 'top';
+        skipY = 0.5;
+      } else {
+        coords.h -= 1;
+        skipY = 1;
+      }
+      coords.y2 = coords.y + coords.h + skipY - 1;
+      coords.x2 = coords.x + coords.w + skipX - 1;
+      console.log(coords);
+      Crafty.e(topType).at(coords.x, coords.y).half(halfHor, halfVert);
+      firstLayer = true;
+      if (coords.y2 > (coords.y + skipY)) {
+        for (y = i = ref = coords.y + skipY, ref1 = coords.y2; ref <= ref1 ? i <= ref1 : i >= ref1; y = ref <= ref1 ? ++i : --i) {
+          console.log("y = " + y + ", skipY = " + skipY);
+          Crafty.e(fillerType).at(coords.x, y).half(halfHor, null);
+          if (coords.x2 > (coords.x + skipX)) {
+            for (x = j = ref2 = coords.x + skipX, ref3 = coords.x2; ref2 <= ref3 ? j <= ref3 : j >= ref3; x = ref2 <= ref3 ? ++j : --j) {
+              console.log("x = " + x + ", skipX = " + skipX);
+              if (firstLayer) {
+                Crafty.e(topType).at(x, y - skipY).half(null, halfVert);
+              }
+              Crafty.e(fillerType).at(x, y);
+            }
+          }
+        }
+        return firstLayer = false;
+      }
+    };
+
     return Level;
 
   })();
@@ -13253,6 +13549,12 @@ Crafty.extend({
 (function() {
   Crafty.scene('Level00-01', (function(level) {
     level.init();
+    level.solidPlatform({
+      x: 5,
+      y: -3,
+      w: 1,
+      h: 1
+    });
     Crafty.e('LevelEnd').at(12, -1);
     Crafty.e("Player").at(1, -1);
     return this.nextLevel = this.bind('LevelComplete', function() {
@@ -13339,6 +13641,15 @@ Crafty.extend({
       padChar = padChar != null ? padChar : '0';
       pad = new Array(1 + padSize).join(padChar);
       return (pad + value).slice(-pad.length);
+    },
+    negativeCheck: function(number) {
+      if (number < 0) {
+        return -1;
+      } else if (number > 0) {
+        return 1;
+      } else {
+        return 0;
+      }
     }
   };
 

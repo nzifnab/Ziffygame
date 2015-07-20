@@ -3,8 +3,8 @@ class window.Game
     width: 17,
     height: 8,
     tile: {
-      width: 64,
-      height: 64
+      width: 70,
+      height: 70
     }
     baseFloorHeight: 3
     playAreaWidth: 12
