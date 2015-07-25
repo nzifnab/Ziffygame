@@ -19,13 +19,14 @@ class Game.Level
 
   init: ->
     # Cover the floor in tiles
-    for x in [0..Game.gameGrid.playAreaWidth]
-      # These will be the platform 'tops'
-      y = 0
-      Crafty.e('Grass').at(x, y)
-      for y in [(y + 1)..Game.gameGrid.height]
-        # Under the platform 'tops' shall be the 'dirt' bits
-        Crafty.e('Dirt').at(x, y)
+    Crafty.e('Grass').at(1, 0)
+    #for x in [0..Game.gameGrid.playAreaWidth]
+    #  # These will be the platform 'tops'
+    #  y = 0
+    #  Crafty.e('Grass').at(x, y)
+    #  for y in [(y + 1)..Game.gameGrid.height]
+    #    # Under the platform 'tops' shall be the 'dirt' bits
+    #    Crafty.e('Dirt').at(x, y)
 
   solidPlatform: (coords, topType='Grass', fillerType='Dirt') ->
     if coords.w % 1 == 0.5

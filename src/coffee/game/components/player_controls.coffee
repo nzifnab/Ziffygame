@@ -6,14 +6,15 @@ Crafty.c "PlayerControls", {
     @requires('Keyboard')
     @_velocity = {x: 0, y: 0}
 
-    @_controls_bindControls()
-
     # Apply movement if key is down when created
     for k in [Crafty.keys.LEFT_ARROW, Crafty.keys.RIGHT_ARROW, Crafty.keys.A, Crafty.keys.D]
       if Crafty.keydown[k]
         @trigger "KeyDown", {
           key: k
         }
+
+  bindMovementControls: ->
+    @_controls_bindControls()
 
   _controls_bindControls: ->
     @unbind "KeyDown", @_controls_keydown
@@ -102,9 +103,12 @@ Crafty.c "PlayerControls", {
     if isDucking
       @y += @attr('h') * 0.25
       @attr('h', @attr('h') * 0.75)
-      @collision([3, 42*0.75+10], [49, 42*0.75+10], [49, 105*0.75], [3, 105*0.75])
+      #@collision(3, 49, 46, (105*0.75 - 42*0.75+10))
+      @setHitbox(3, 42*0.75+10, 46, (105*0.75 - 42*0.75+10))
+      #@collision([3, 42*0.75+10], [49, 42*0.75+10], [49, 105*0.75], [3, 105*0.75])
     else
       @y -= (@height - @attr('h'))
       @attr('h', @height)
-      .collision([3, 42], [49, 42], [49, 105], [3, 105])
+      @setHitbox()
+      #.collision([3, 42], [49, 42], [49, 105], [3, 105])
 }
