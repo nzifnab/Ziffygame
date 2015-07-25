@@ -13091,7 +13091,7 @@ Crafty.extend({
         this._velocity.y += this._gravityConst;
       }
       pos = this.hitbox.pos();
-      pos._h += this._velocity.y + this._gravityConst;
+      pos._h += this._velocity.y + this._gravityConst + 1;
       objects = Crafty.map.search(pos);
       for (i = 0, len = objects.length; i < len; i++) {
         obj = objects[i];
@@ -13101,7 +13101,9 @@ Crafty.extend({
         }
       }
       if (hit) {
-        return this.stopFalling(hit);
+        if (this._falling) {
+          return this.stopFalling(hit);
+        }
       } else {
         return this._falling = true;
       }
@@ -13113,7 +13115,7 @@ Crafty.extend({
       if (!obj.has(this._anti)) {
         return false;
       }
-      if (this._velocity.y >= 0 && (this.hitbox._x + this.hitbox._w > obj.x) && (this.hitbox._x < obj.x + obj.h) && (this.hitbox._y + this.hitbox._h) <= obj.y && (this.hitbox._y + this.hitbox._h + this._velocity.y + this._gravityConst) > obj.y) {
+      if (this._velocity.y >= 0 && (this.hitbox._x + this.hitbox._w > obj.x) && (this.hitbox._x < obj.x + obj.h) && (this.hitbox._y + this.hitbox._h) <= obj.y && (this.hitbox._y + this.hitbox._h + this._velocity.y + this._gravityConst + 1) > obj.y) {
         return true;
       }
     },
@@ -13160,16 +13162,20 @@ Crafty.extend({
     height: Game.gameGrid.tile.height * 1.5,
     init: function() {
       this.hitbox = Crafty.e("PlayerHitBox");
-      return this.requires('PlayerSprite, GravityVelocity, PlayerControls, Color').attr({
+      return this.requires('PlayerSprite, GravityVelocity, PlayerControls').attr({
         w: this.width,
         h: this.height
       }).attach(this.hitbox).gravity("Floor").gravityConst(Game.gravityConst).bindMovementControls();
     },
     setHitbox: function(x, y, w, h) {
-      this.hitbox.x = x || this.hitbox.baseX;
-      this.hitbox.y = y || this.hitbox.baseY;
-      this.hitbox.w = w || this.hitbox.baseW;
-      return this.hitbox.h = h || this.hitbox.baseH;
+      x || (x = this.hitbox.baseX);
+      y || (y = this.hitbox.baseY);
+      w || (w = this.hitbox.baseW);
+      h || (h = this.hitbox.baseH);
+      this.hitbox.x = x + this._x;
+      this.hitbox.y = y + this._y;
+      this.hitbox.w = w;
+      return this.hitbox.h = h;
     },
     at: function(x, y) {
       var transX, transY;
@@ -13196,12 +13202,12 @@ Crafty.extend({
     baseW: 46,
     baseH: 63,
     init: function() {
-      return this.requires("VisibleMBR, 2D, Canvas, Collision").attr({
+      return this.requires("2D, Canvas, Collision").attr({
         w: this.baseW,
         h: this.baseH,
         x: this.baseX,
         y: this.baseY
-      }).debugAlpha(0.7).registerCollisions();
+      }).registerCollisions();
     },
     registerCollisions: function() {
       this.onHit('Solid', this.stopMovement);
@@ -13340,7 +13346,7 @@ Crafty.extend({
       if (isDucking) {
         this.y += this.attr('h') * 0.25;
         this.attr('h', this.attr('h') * 0.75);
-        return this.setHitbox(3, 42 * 0.75 + 10, 46, 105 * 0.75 - 42 * 0.75 + 10);
+        return this.setHitbox(3, 44, 46, this._h - 44);
       } else {
         this.y -= this.height - this.attr('h');
         this.attr('h', this.height);
@@ -13515,7 +13521,21 @@ Crafty.extend({
     };
 
     Level.prototype.init = function() {
-      return Crafty.e('Grass').at(1, 0);
+      var i, ref, results, x, y;
+      results = [];
+      for (x = i = 0, ref = Game.gameGrid.playAreaWidth; 0 <= ref ? i <= ref : i >= ref; x = 0 <= ref ? ++i : --i) {
+        y = 0;
+        Crafty.e('Grass').at(x, y);
+        results.push((function() {
+          var j, ref1, ref2, results1;
+          results1 = [];
+          for (y = j = ref1 = y + 1, ref2 = Game.gameGrid.height; ref1 <= ref2 ? j <= ref2 : j >= ref2; y = ref1 <= ref2 ? ++j : --j) {
+            results1.push(Crafty.e('Dirt').at(x, y));
+          }
+          return results1;
+        })());
+      }
+      return results;
     };
 
     Level.prototype.solidPlatform = function(coords, topType, fillerType) {

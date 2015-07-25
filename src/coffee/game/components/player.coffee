@@ -3,7 +3,7 @@ Crafty.c "Player", {
   height: Game.gameGrid.tile.height * 1.5
   init: ->
     @hitbox = Crafty.e("PlayerHitBox")
-    @requires('PlayerSprite, GravityVelocity, PlayerControls, Color')
+    @requires('PlayerSprite, GravityVelocity, PlayerControls')
       .attr {
         w: @width,
         h: @height
@@ -18,10 +18,14 @@ Crafty.c "Player", {
       #.color('blue')
 
   setHitbox: (x, y, w, h)->
-    @hitbox.x = x || @hitbox.baseX
-    @hitbox.y = y || @hitbox.baseY
-    @hitbox.w = w || @hitbox.baseW
-    @hitbox.h = h || @hitbox.baseH
+    x ||= @hitbox.baseX
+    y ||= @hitbox.baseY
+    w ||= @hitbox.baseW
+    h ||= @hitbox.baseH
+    @hitbox.x = x + @_x
+    @hitbox.y = y + @_y
+    @hitbox.w = w
+    @hitbox.h = h
 
   at: (x, y) ->
     transX = Game.playAreaX()
@@ -52,14 +56,14 @@ Crafty.c "PlayerHitBox", {
   baseW: 46
   baseH: 63
   init: ->
-    @requires("VisibleMBR, 2D, Canvas, Collision")
+    @requires("2D, Canvas, Collision")
       .attr({
               w: @baseW
               h: @baseH
               x: @baseX
               y: @baseY
             })
-    .debugAlpha(0.7)
+    #.debugAlpha(0.7)
     .registerCollisions()
 
   registerCollisions: ->

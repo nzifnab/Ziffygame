@@ -20,7 +20,7 @@ Crafty.c "GravityVelocity", {
     pos = @hitbox.pos()
     # Make sure to search the whole space before and after
     # velocity
-    pos._h += @_velocity.y + @_gravityConst
+    pos._h += @_velocity.y + @_gravityConst + 1
     # map.search wants _x, intersect wants x... wat.
     #pos.x = pos._x
     #pos.y = pos._y
@@ -70,7 +70,7 @@ Crafty.c "GravityVelocity", {
       # before velocity... are we *above* the platform
       (@hitbox._y + @hitbox._h) <= obj.y &&
       # after velocity, are we *below* it
-      (@hitbox._y + @hitbox._h + @_velocity.y + @_gravityConst) > obj.y
+      (@hitbox._y + @hitbox._h + @_velocity.y + @_gravityConst + 1) > obj.y
     )
       return true
 
