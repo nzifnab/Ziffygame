@@ -19,7 +19,6 @@ Crafty.c "PlayerSprite", {
       .animate('PlayerResting', -1)
 
     @bind('NewDirection', (data) ->
-      console.log {x: data.x, y: data.y}
       return if @ducking || @jumping
       if data.y != 0
         @animate('PlayerFalling', -1)

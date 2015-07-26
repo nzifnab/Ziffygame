@@ -14,6 +14,10 @@ Crafty.c "GravityVelocity", {
     @_gravityConst = g
     return this
 
+  terminalVelocity: (v) ->
+    @_terminalVelocity = v
+    this
+
   _gravity_enterframe: ->
     @_velocity.y += @_gravityConst if @_falling
 
@@ -75,7 +79,6 @@ Crafty.c "GravityVelocity", {
       return true
 
   stopFalling: (e) ->
-    console.log "Collision with floor"
     @y = e._y - @_h - 1 # move object to top of floor
     @_velocity.y = 0
     @_falling = false

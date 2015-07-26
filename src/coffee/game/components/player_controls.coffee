@@ -6,6 +6,9 @@ Crafty.c "PlayerControls", {
     @requires('Keyboard')
     @_velocity = {x: 0, y: 0}
 
+  bindMovementControls: ->
+    @_controls_bindControls()
+
     # Apply movement if key is down when created
     for k in [Crafty.keys.LEFT_ARROW, Crafty.keys.RIGHT_ARROW, Crafty.keys.A, Crafty.keys.D]
       if Crafty.keydown[k]
@@ -13,8 +16,7 @@ Crafty.c "PlayerControls", {
           key: k
         }
 
-  bindMovementControls: ->
-    @_controls_bindControls()
+    this
 
   _controls_bindControls: ->
     @unbind "KeyDown", @_controls_keydown
@@ -30,6 +32,8 @@ Crafty.c "PlayerControls", {
 
   _controls_enterframe: (e) ->
     x = @_velocity.x
+    if @_velocity.y >= @_terminalVelocity
+      @_velocity.y = @_terminalVelocity
     y = @_velocity.y
 
     if @ducking || @jumping
@@ -39,8 +43,10 @@ Crafty.c "PlayerControls", {
       @x += x
       moved = true
 
+
     if y != 0
       moved = true
+      @jumping = false
       @y += y
 
     if Game.Utility.negativeCheck(x) != Game.Utility.negativeCheck(@_velocity.previousX) || Game.Utility.negativeCheck(y) != Game.Utility.negativeCheck(@_velocity.previousY)
@@ -62,23 +68,26 @@ Crafty.c "PlayerControls", {
 
   _controls_keydown: (e) ->
     if (e.key == Crafty.keys.LEFT_ARROW || e.key == Crafty.keys.A)
+      @_left_key_clicked = true
       @_velocity.x += -@baseSpeed
     else if (e.key == Crafty.keys.RIGHT_ARROW || e.key == Crafty.keys.D)
+      @_right_key_clicked = true
       @_velocity.x += @baseSpeed
 
-    if !@ducking && (e.key == Crafty.keys.DOWN_ARROW || e.key == Crafty.keys.S)
-      @duck()
+    if !@ducking && !@jumping
+      if (e.key == Crafty.keys.DOWN_ARROW || e.key == Crafty.keys.S)
+        @duck()
 
-    if !@jumping && (e.key == Crafty.keys.UP_ARROW || e.key == Crafty.keys.W)
-      @jump()
+      if (e.key == Crafty.keys.UP_ARROW || e.key == Crafty.keys.W)
+        @jump()
 
   _controls_keyup: (e) ->
     if e.key == Crafty.keys.LEFT_ARROW || e.key == Crafty.keys.A
-      @_velocity.x -= -@baseSpeed
+      @_velocity.x -= -@baseSpeed if @_left_key_clicked
     else if e.key == Crafty.keys.RIGHT_ARROW || e.key == Crafty.keys.D
-      @_velocity.x -= @baseSpeed
+      @_velocity.x -= @baseSpeed if @_right_key_clicked
 
-    if (e.key == Crafty.keys.DOWN_ARROW || e.key == Crafty.keys.S) && !Crafty.keydown[Crafty.keys.DOWN_ARROW] && !Crafty.keydown[Crafty.keys.S]
+    if @ducking && (e.key == Crafty.keys.DOWN_ARROW || e.key == Crafty.keys.S) && !Crafty.keydown[Crafty.keys.DOWN_ARROW] && !Crafty.keydown[Crafty.keys.S]
       @stand()
 
   duck: ->
@@ -93,7 +102,6 @@ Crafty.c "PlayerControls", {
 
   performJump: ->
     @_velocity.y = -@jumpSpeed
-    @jumping = false
 
   stand: ->
     @trigger("PlayerDucking", false)

@@ -48,7 +48,6 @@ class Game.Level
     coords.y2 = coords.y + coords.h + skipY - 1
     coords.x2 = coords.x + coords.w + skipX - 1
 
-    console.log coords
 
     Crafty.e(topType).at(coords.x, coords.y)
       .half(halfHor, halfVert)
@@ -56,13 +55,11 @@ class Game.Level
     firstLayer = true
     if coords.y2 > (coords.y + skipY)
       for y in [(coords.y + skipY)..coords.y2]
-        console.log "y = #{y}, skipY = #{skipY}"
         Crafty.e(fillerType).at(coords.x, y)
           .half(halfHor, null)
 
         if coords.x2 > (coords.x + skipX)
           for x in [(coords.x + skipX)..coords.x2]
-            console.log "x = #{x}, skipX = #{skipX}"
 
             if firstLayer
               Crafty.e(topType).at(x, y-skipY)

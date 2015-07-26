@@ -13026,6 +13026,8 @@ Crafty.extend({
 
     Game.gravityConst = 0.2;
 
+    Game.terminalVelocity = 12;
+
     Game.width = function() {
       return this.gameGrid.width * this.gameGrid.tile.width;
     };
@@ -13085,6 +13087,10 @@ Crafty.extend({
       this._gravityConst = g;
       return this;
     },
+    terminalVelocity: function(v) {
+      this._terminalVelocity = v;
+      return this;
+    },
     _gravity_enterframe: function() {
       var hit, i, len, obj, objects, pos;
       if (this._falling) {
@@ -13120,7 +13126,6 @@ Crafty.extend({
       }
     },
     stopFalling: function(e) {
-      console.log("Collision with floor");
       this.y = e._y - this._h - 1;
       this._velocity.y = 0;
       this._falling = false;
@@ -13165,7 +13170,7 @@ Crafty.extend({
       return this.requires('PlayerSprite, GravityVelocity, PlayerControls').attr({
         w: this.width,
         h: this.height
-      }).attach(this.hitbox).gravity("Floor").gravityConst(Game.gravityConst).bindMovementControls();
+      }).attach(this.hitbox).gravity("Floor").gravityConst(Game.gravityConst).terminalVelocity(Game.terminalVelocity).bindMovementControls();
     },
     setHitbox: function(x, y, w, h) {
       x || (x = this.hitbox.baseX);
@@ -13232,28 +13237,25 @@ Crafty.extend({
     baseSpeed: 4,
     jumpSpeed: Game.gameGrid.tile.height * 0.09375,
     init: function() {
-      var i, k, len, ref, results;
       this.requires('Keyboard');
-      this._velocity = {
+      return this._velocity = {
         x: 0,
         y: 0
       };
+    },
+    bindMovementControls: function() {
+      var i, k, len, ref;
+      this._controls_bindControls();
       ref = [Crafty.keys.LEFT_ARROW, Crafty.keys.RIGHT_ARROW, Crafty.keys.A, Crafty.keys.D];
-      results = [];
       for (i = 0, len = ref.length; i < len; i++) {
         k = ref[i];
         if (Crafty.keydown[k]) {
-          results.push(this.trigger("KeyDown", {
+          this.trigger("KeyDown", {
             key: k
-          }));
-        } else {
-          results.push(void 0);
+          });
         }
       }
-      return results;
-    },
-    bindMovementControls: function() {
-      return this._controls_bindControls();
+      return this;
     },
     _controls_bindControls: function() {
       this.unbind("KeyDown", this._controls_keydown);
@@ -13270,6 +13272,9 @@ Crafty.extend({
     _controls_enterframe: function(e) {
       var moved, x, y;
       x = this._velocity.x;
+      if (this._velocity.y >= this._terminalVelocity) {
+        this._velocity.y = this._terminalVelocity;
+      }
       y = this._velocity.y;
       if (this.ducking || this.jumping) {
         x = 0;
@@ -13280,6 +13285,7 @@ Crafty.extend({
       }
       if (y !== 0) {
         moved = true;
+        this.jumping = false;
         this.y += y;
       }
       if (Game.Utility.negativeCheck(x) !== Game.Utility.negativeCheck(this._velocity.previousX) || Game.Utility.negativeCheck(y) !== Game.Utility.negativeCheck(this._velocity.previousY)) {
@@ -13301,24 +13307,32 @@ Crafty.extend({
     },
     _controls_keydown: function(e) {
       if (e.key === Crafty.keys.LEFT_ARROW || e.key === Crafty.keys.A) {
+        this._left_key_clicked = true;
         this._velocity.x += -this.baseSpeed;
       } else if (e.key === Crafty.keys.RIGHT_ARROW || e.key === Crafty.keys.D) {
+        this._right_key_clicked = true;
         this._velocity.x += this.baseSpeed;
       }
-      if (!this.ducking && (e.key === Crafty.keys.DOWN_ARROW || e.key === Crafty.keys.S)) {
-        this.duck();
-      }
-      if (!this.jumping && (e.key === Crafty.keys.UP_ARROW || e.key === Crafty.keys.W)) {
-        return this.jump();
+      if (!this.ducking && !this.jumping) {
+        if (e.key === Crafty.keys.DOWN_ARROW || e.key === Crafty.keys.S) {
+          this.duck();
+        }
+        if (e.key === Crafty.keys.UP_ARROW || e.key === Crafty.keys.W) {
+          return this.jump();
+        }
       }
     },
     _controls_keyup: function(e) {
       if (e.key === Crafty.keys.LEFT_ARROW || e.key === Crafty.keys.A) {
-        this._velocity.x -= -this.baseSpeed;
+        if (this._left_key_clicked) {
+          this._velocity.x -= -this.baseSpeed;
+        }
       } else if (e.key === Crafty.keys.RIGHT_ARROW || e.key === Crafty.keys.D) {
-        this._velocity.x -= this.baseSpeed;
+        if (this._right_key_clicked) {
+          this._velocity.x -= this.baseSpeed;
+        }
       }
-      if ((e.key === Crafty.keys.DOWN_ARROW || e.key === Crafty.keys.S) && !Crafty.keydown[Crafty.keys.DOWN_ARROW] && !Crafty.keydown[Crafty.keys.S]) {
+      if (this.ducking && (e.key === Crafty.keys.DOWN_ARROW || e.key === Crafty.keys.S) && !Crafty.keydown[Crafty.keys.DOWN_ARROW] && !Crafty.keydown[Crafty.keys.S]) {
         return this.stand();
       }
     },
@@ -13335,8 +13349,7 @@ Crafty.extend({
       }
     },
     performJump: function() {
-      this._velocity.y = -this.jumpSpeed;
-      return this.jumping = false;
+      return this._velocity.y = -this.jumpSpeed;
     },
     stand: function() {
       this.trigger("PlayerDucking", false);
@@ -13362,10 +13375,6 @@ Crafty.extend({
     init: function() {
       this.requires('2D, Canvas, spr_player, SpriteAnimation').reel("PlayerRunning", 200, [[4, 1], [4, 2]]).reel("PlayerResting", 50000, [[4, 5], [5, 0]]).reel("PlayerDucking", 1, [[5, 1]]).reel("PlayerJumping", 500, [[5, 1], [5, 1], [5, 1], [4, 2]]).reel("PlayerFalling", 500, [[4, 3], [4, 4]]).animate('PlayerResting', -1);
       this.bind('NewDirection', function(data) {
-        console.log({
-          x: data.x,
-          y: data.y
-        });
         if (this.ducking || this.jumping) {
           return;
         }
@@ -13455,13 +13464,10 @@ Crafty.extend({
       if (vertical == null) {
         vertical = null;
       }
-      console.log("@w = " + this.w + ", @h = " + this.h);
-      console.log("horizontal = " + horizontal + ", vertical = " + vertical);
       x = horizontal === 'left' || !horizontal ? 0 : this.w / 2;
       y = vertical === 'top' || !vertical ? 0 : this.h / 2;
       w = horizontal ? this.w / 2 : this.w;
       h = vertical ? this.h / 2 : this.h;
-      console.log("x = " + x + ", y = " + y + ", w = " + w + ", h = " + h);
       return this.crop(x, y, w, h);
     }
   });
@@ -13565,16 +13571,13 @@ Crafty.extend({
       }
       coords.y2 = coords.y + coords.h + skipY - 1;
       coords.x2 = coords.x + coords.w + skipX - 1;
-      console.log(coords);
       Crafty.e(topType).at(coords.x, coords.y).half(halfHor, halfVert);
       firstLayer = true;
       if (coords.y2 > (coords.y + skipY)) {
         for (y = i = ref = coords.y + skipY, ref1 = coords.y2; ref <= ref1 ? i <= ref1 : i >= ref1; y = ref <= ref1 ? ++i : --i) {
-          console.log("y = " + y + ", skipY = " + skipY);
           Crafty.e(fillerType).at(coords.x, y).half(halfHor, null);
           if (coords.x2 > (coords.x + skipX)) {
             for (x = j = ref2 = coords.x + skipX, ref3 = coords.x2; ref2 <= ref3 ? j <= ref3 : j >= ref3; x = ref2 <= ref3 ? ++j : --j) {
-              console.log("x = " + x + ", skipX = " + skipX);
               if (firstLayer) {
                 Crafty.e(topType).at(x, y - skipY).half(null, halfVert);
               }

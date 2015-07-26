@@ -11,6 +11,7 @@ class window.Game
   }
 
   @gravityConst: 0.2
+  @terminalVelocity: 12
 
   @width: ->
     @gameGrid.width * @gameGrid.tile.width

@@ -14,6 +14,7 @@ Crafty.c "Player", {
       #.registerCollisions()
       .gravity("Floor")
       .gravityConst(Game.gravityConst)
+      .terminalVelocity(Game.terminalVelocity)
       .bindMovementControls()
       #.color('blue')
 
